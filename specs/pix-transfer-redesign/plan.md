@@ -1,72 +1,72 @@
 # Plan: Pix Transfer Redesign
 
-> **Nota de atualização (2026-08-13):** este plano propunha originalmente 4
-> telas, cada uma com seu próprio ViewModel. O protótipo aprovado
-> (`design/images/pix-depois.png`) consolidou as etapas de **Valor** e
-> **Revisão** em uma única tela, resultando em um fluxo de 3 telas. A
-> implementação seguiu o protótipo (fonte de verdade de UX) em vez desta
-> versão do plano — as seções abaixo foram atualizadas para refletir a
-> implementação real. Ver também a nota equivalente em `tasks.md`.
+> **Update note (2026-08-13):** this plan originally proposed 4 screens, each
+> with its own ViewModel. The approved prototype
+> (`design/images/pix-depois.png`) consolidated the **Amount** and
+> **Review** steps into a single screen, resulting in a 3-screen flow. The
+> implementation followed the prototype (source of truth for UX) instead of
+> this version of the plan — the sections below have been updated to reflect
+> the actual implementation. See also the equivalent note in `tasks.md`.
 
-## Visão geral do fluxo
-A jornada é composta por 3 telas, navegadas sequencialmente por um Coordinator
-dedicado, cobrindo as 4 user stories da spec (a etapa de "Valor" e a de
-"Revisão" da spec original são atendidas por uma única tela, que reúne
-digitação de valor e resumo revisável antes da confirmação):
+## Flow overview
+The journey consists of 3 screens, navigated sequentially by a dedicated
+Coordinator, covering the spec's 4 user stories (the spec's original
+"Amount" and "Review" steps are handled by a single screen, which combines
+amount entry and a reviewable summary before confirmation):
 
-1. **Seleção de destinatário** (`SelectRecipientView`) — lista de destinatários salvos ou entrada manual de chave Pix
-2. **Valor + Revisão** (`ReviewPaymentView`) — informar o valor, visualizar o saldo disponível e revisar destinatário + valor antes de confirmar
-3. **Confirmação** (`ConfirmationView`) — feedback de sucesso ou erro
+1. **Recipient selection** (`SelectRecipientView`) — list of saved recipients or manual Pix key entry
+2. **Amount + Review** (`ReviewPaymentView`) — enter the amount, view the available balance, and review recipient + amount before confirming
+3. **Confirmation** (`ConfirmationView`) — success or error feedback
 
-## Camadas (Clean Architecture)
+## Layers (Clean Architecture)
 
-### Domain (módulo Pix)
-Regras de negócio, sem dependência de SwiftUI/UIKit/rede.
-- **Entidades**: `PixRecipient`, `PixKey`, `TransferAmount`, `AccountBalance`, `PixTransferRequest`, `PixTransferResult`
-- **Protocolos de repositório**: `PixRecipientRepository`, `AccountBalanceRepository`, `PixTransferRepository`
-- **Use cases**: `FetchSavedRecipientsUseCase`, `ValidatePixKeyUseCase`, `FetchAccountBalanceUseCase`, `ValidateTransferAmountUseCase` (valor > 0 e ≤ saldo disponível), `ConfirmPixTransferUseCase`
+### Domain (Pix module)
+Business rules, with no dependency on SwiftUI/UIKit/networking.
+- **Entities**: `PixRecipient`, `PixKey`, `TransferAmount`, `AccountBalance`, `PixTransferRequest`, `PixTransferResult`
+- **Repository protocols**: `PixRecipientRepository`, `AccountBalanceRepository`, `PixTransferRepository`
+- **Use cases**: `FetchSavedRecipientsUseCase`, `ValidatePixKeyUseCase`, `FetchAccountBalanceUseCase`, `ValidateTransferAmountUseCase` (amount > 0 and ≤ available balance), `ConfirmPixTransferUseCase`
 
-### Data (módulo Pix, usando networking do Core)
-Implementações concretas dos protocolos de repositório.
-- DTOs e mappers DTO → Entidade de domínio
+### Data (Pix module, using Core's networking)
+Concrete implementations of the repository protocols.
+- DTOs and DTO → domain entity mappers
 - `PixRecipientRepositoryImpl`, `AccountBalanceRepositoryImpl`, `PixTransferRepositoryImpl`
-- Tratamento de erros de rede mapeado para tipos de erro de domínio (não expor erros de transporte para a Presentation)
+- Network error handling mapped to domain error types (transport errors not exposed to Presentation)
 
-### Presentation (módulo Pix, SwiftUI + MVVM)
-Um único `PixViewModel`, compartilhado pelas 3 telas do fluxo (injetado pelo
-Coordinator na mesma instância em cada View), em vez de um ViewModel por
-tela — o estado (destinatário selecionado, valor, comprovante) atravessa a
-navegação sem precisar ser retransmitido manualmente entre ViewModels:
+### Presentation (Pix module, SwiftUI + MVVM)
+A single `PixViewModel`, shared across the flow's 3 screens (injected by the
+Coordinator as the same instance into each View), instead of one ViewModel
+per screen — state (selected recipient, amount, receipt) flows across
+navigation without needing to be manually relayed between ViewModels:
 - `SelectRecipientView`
 - `ReviewPaymentView`
 - `ConfirmationView`
-- `PixViewModel` (único, `@MainActor`, `@Published`)
+- `PixViewModel` (single instance, `@MainActor`, `@Published`)
 
-O `PixViewModel` só conversa com Use Cases (nunca diretamente com
-repositórios ou rede) e expõe estado observável (`@Published`) consumido
-pelas 3 Views.
+`PixViewModel` only talks to Use Cases (never directly to repositories or
+the network) and exposes observable state (`@Published`) consumed by the 3
+Views.
 
 ## Coordinator
-- `PixCoordinator` (UIKit, `UINavigationController`-based), cada SwiftUI View embrulhada em `UIHostingController`
-- Responsável por: iniciar o fluxo (`start()`), avançar/retroceder entre as 3 telas, encerrar o fluxo e notificar o coordinator pai (delegate/closure) ao concluir ou cancelar
-- A View não navega diretamente — comunica intenção ao Coordinator via closures (ex.: `onRecipientSelected`, `onChangeRecipient`, `onTransferConfirmed`, `onFinish`, `onRepeat`)
-- Nenhuma navegação deve ser criada fora deste Coordinator (regra do CLAUDE.md)
+- `PixCoordinator` (UIKit, `UINavigationController`-based), each SwiftUI View wrapped in a `UIHostingController`
+- Responsible for: starting the flow (`start()`), moving forward/back between the 3 screens, ending the flow, and notifying the parent coordinator (delegate/closure) on completion or cancellation
+- The View doesn't navigate directly — it communicates intent to the Coordinator via closures (e.g., `onRecipientSelected`, `onChangeRecipient`, `onTransferConfirmed`, `onFinish`, `onRepeat`)
+- No navigation should be created outside this Coordinator (rule from CLAUDE.md)
 
-## Módulos afetados
-- **Pix** — todo o código novo de Domain/Data/Presentation da feature e o Coordinator
-- **Core** — reaproveitar cliente de rede e tipos de erro compartilhados; adicionar apenas o que for genérico o suficiente para outras features (ex.: formatação de moeda, se ainda não existir)
-- **DesignSystem** — reaproveitar componentes existentes (campo de texto, lista de seleção, botão primário/secundário, banner de erro/sucesso); qualquer componente novo necessário deve ser adicionado aqui, nunca criado localmente dentro do módulo Pix
-- **App** — registrar o `PixCoordinator` e suas dependências no composition root/DI, e conectar o ponto de entrada existente do super-app à inicialização do fluxo
+## Affected modules
+- **Pix** — all new Domain/Data/Presentation code for the feature and the Coordinator
+- **Core** — reuse the shared network client and error types; add only what's generic enough for other features (e.g., currency formatting, if it doesn't already exist)
+- **DesignSystem** — reuse existing components (text field, selection list, primary/secondary button, error/success banner); any new component needed must be added here, never created locally inside the Pix module
+- **App** — register `PixCoordinator` and its dependencies in the composition root/DI, and wire the super-app's existing entry point to the flow's initialization
 
-## Acessibilidade (WCAG 2.1 AA)
-- VoiceOver: labels, hints e ordem de leitura definidos para cada View, com foco especial nas mensagens de erro/sucesso da tela de Confirmação
-- Dynamic Type: layouts validados em tamanhos de fonte de acessibilidade (não só nos tamanhos padrão)
-- Erros nunca comunicados apenas por cor — sempre acompanhados de texto/ícone com label acessível
+## Accessibility (WCAG 2.1 AA)
+- VoiceOver: labels, hints, and reading order defined for each View, with special attention to the error/success messages on the Confirmation screen
+- Dynamic Type: layouts validated at accessibility font sizes (not just the default sizes)
+- Errors never communicated by color alone — always paired with text/icon with an accessible label
 
-## Testes
-- Testes unitários obrigatórios para o `PixViewModel` compartilhado, cobrindo os cenários das 3 telas: estados de carregamento, validação (chave Pix, valor vs. saldo), sucesso e erro
-- Fora do escopo desta fase: testes de UI automatizados (não exigidos pelos critérios de aceite da spec)
+## Tests
+- Unit tests required for the shared `PixViewModel`, covering the scenarios across the 3 screens: loading states, validation (Pix key, amount vs. balance), success, and error
+- Out of scope for this phase: automated UI tests (not required by the spec's acceptance criteria)
 
-## Riscos técnicos
-- Contratos de API (busca de destinatários, validação de chave, saldo, confirmação) ainda não definidos com o backend (`superapp-api`) — bloqueiam o início da camada Data
-- Reuso de componentes do Design System depende de quais já existem hoje; falta de componente pode adicionar trabalho não estimado aqui
+## Technical risks
+- API contracts (recipient lookup, key validation, balance, confirmation) not yet defined with the backend (`superapp-api`) — blocks the start of the Data layer
+- Reuse of Design System components depends on what already exists today; a missing component may add unestimated work here

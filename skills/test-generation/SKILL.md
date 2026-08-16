@@ -1,10 +1,10 @@
 ---
 name: test-generation
-description: Use para gerar testes unitários de ViewModels seguindo o padrão do projeto
+description: Use to generate ViewModel unit tests following the project's convention
 ---
 
-Ao gerar testes de um ViewModel:
-- Use um Mock do repositório/serviço correspondente
-- Cubra o caminho feliz e pelo menos 2 cenários de erro
-- Nomeie os testes no formato test_<condição>_<resultadoEsperado>
-- Não teste detalhes de UI, só estado e lógica do ViewModel
+When generating tests for a ViewModel:
+- Use a Mock of the corresponding repository/service
+- Cover the happy path and at least 2 error scenarios
+- Name tests in the format test_<condition>_<expectedResult>
+- Don't test UI details, only the ViewModel's state and logic

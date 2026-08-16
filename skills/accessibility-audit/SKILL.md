@@ -1,11 +1,11 @@
 ---
 name: accessibility-audit
-description: Use antes de finalizar qualquer tela nova para checar conformidade WCAG 2.1 AA
+description: Use before finalizing any new screen to check WCAG 2.1 AA compliance
 ---
 
-Antes de considerar uma tela pronta, verifique:
-- Todo elemento interativo tem accessibilityLabel claro
-- Suporte a Dynamic Type (sem tamanhos de fonte fixos)
-- Contraste mínimo 4.5:1 entre texto e fundo
-- Área de toque mínima de 44x44pt
-- Fluxo navegável 100% via VoiceOver, na ordem lógica correta
+Before considering a screen done, check:
+- Every interactive element has a clear accessibilityLabel
+- Dynamic Type support (no fixed font sizes)
+- Minimum contrast of 4.5:1 between text and background
+- Minimum touch area of 44x44pt
+- Flow 100% navigable via VoiceOver, in the correct logical order

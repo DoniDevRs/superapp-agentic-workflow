@@ -1,234 +1,235 @@
 # SuperApp Agentic Lab
 
-Laboratório de estudo com objetivo duplo: (1) redesenhar a jornada de
-**Transferência via Pix** de um super-app bancário fictício e (2) validar, na
-prática, um fluxo de desenvolvimento orientado por especificação (SDD)
-executado por agentes de IA especializados — do requisito de negócio até o
-code review, passando por implementação, testes e auditoria de
-acessibilidade.
+A study lab with a dual goal: (1) redesign the **Pix Transfer** journey of a
+fictional banking super-app and (2) validate, in practice, a specification-
+driven development workflow (SDD) executed by specialized AI agents — from
+the business requirement all the way to code review, going through
+implementation, tests, and an accessibility audit.
 
-Este repositório (`superapp-agentic-workflow`) concentra o contexto do
-projeto, o fluxo SDD, as skills e os subagents. A implementação real vive em
-três repositórios satélite:
+This repository (`superapp-agentic-workflow`) holds the project context, the
+SDD workflow, the skills, and the subagents. The actual implementation lives
+in three satellite repositories:
 [`superapp-ios`](https://github.com/DoniDevRs/superapp-ios),
-[`superapp-design-system`](https://github.com/DoniDevRs/superapp-design-system)
-e [`superapp-api`](https://github.com/DoniDevRs/superapp-api).
+[`superapp-design-system`](https://github.com/DoniDevRs/superapp-design-system),
+and [`superapp-api`](https://github.com/DoniDevRs/superapp-api).
 
-## O problema
+## The problem
 
-O fluxo fictício original de Pix ("MeuBanco") tinha 6 telas e 11 campos para
-completar uma transferência: menu → tipo de chave → destinatário (com a
-chave Pix digitada duas vezes, para confirmação) → valor → confirmação (com
-senha na mesma tela densa de revisão) → comprovante. O tipo de chave era
-perguntado *antes* de saber quem era o destinatário, uma decisão redundante
-já que o tipo pode ser inferido a partir do valor digitado.
+The original fictional Pix flow ("MeuBanco") had 6 screens and 11 fields to
+complete a transfer: menu → key type → recipient (with the Pix key typed
+twice, for confirmation) → amount → confirmation (with the password on the
+same dense review screen) → receipt. The key type was asked *before* knowing
+who the recipient was — a redundant decision, since the type can be inferred
+from the value typed in.
 
-Havia também problemas de acessibilidade estruturais: alvos de toque de
-26–30px (abaixo dos 44×44pt recomendados), texto de 11px em cinza claro
-sobre cinza (contraste abaixo de 3:1, quando o WCAG 2.1 AA exige 4.5:1 para
-texto normal), e uma tela final que misturava a revisão dos dados com a
-digitação da senha.
+There were also structural accessibility problems: touch targets of
+26–30px (below the recommended 44×44pt), 11px text in light gray on gray
+(contrast below 3:1, when WCAG 2.1 AA requires 4.5:1 for normal text), and a
+final screen that mixed data review with password entry.
 
-Esse cenário, documentado abaixo, foi o ponto de partida para a spec em
+That scenario, documented below, was the starting point for the spec at
 [`specs/pix-transfer-redesign/spec.md`](specs/pix-transfer-redesign/spec.md).
 
-![Fluxo antigo do Pix: 6 telas com 4 decisões redundantes](design/images/pix-antes.png)
+![Old Pix flow: 6 screens with 4 redundant decisions](design/images/pix-antes.png)
 
-## Arquitetura
+## Architecture
 
-O fluxo de trabalho segue um pipeline linear, onde cada etapa produz um
-artefato revisável antes da próxima começar:
+The workflow follows a linear pipeline, where each stage produces a
+reviewable artifact before the next one begins:
 
 ```
 Business Requirement
         │
         ▼
       SPEC        specs/pix-transfer-redesign/spec.md
-        │          (o quê e por quê — sem detalhes de implementação)
+        │          (the what and why — no implementation details)
         ▼
       PLAN        specs/pix-transfer-redesign/plan.md
-        │          (módulos, contratos, componentes de Design System, riscos)
+        │          (modules, contracts, Design System components, risks)
         ▼
       TASKS       specs/pix-transfer-redesign/tasks.md
-        │          (unidades de trabalho pequenas e verificáveis)
+        │          (small, verifiable units of work)
         ▼
    Implementation  Domain → Data → Presentation → Coordinator
-        │          (skill ios-feature)
+        │          (ios-feature skill)
         ▼
-      Tests        testes unitários de ViewModel/UseCase
-        │          (skill test-generation, subagent qa-engineer)
+      Tests        ViewModel/UseCase unit tests
+        │          (test-generation skill, qa-engineer subagent)
         ▼
-Accessibility Audit VoiceOver, Dynamic Type, contraste, hit area
-        │           (skill accessibility-audit + performAccessibilityAudit())
+Accessibility Audit VoiceOver, Dynamic Type, contrast, hit area
+        │           (accessibility-audit skill + performAccessibilityAudit())
         ▼
-   Code Review      retain cycles, threading, Clean Architecture, duplicação
-                    (subagent ios-reviewer)
+   Code Review      retain cycles, threading, Clean Architecture, duplication
+                    (ios-reviewer subagent)
 ```
 
-A regra de ouro do fluxo: se um agente encontra ambiguidade em qualquer
-etapa, ele volta para o artefato da etapa anterior e a esclarece — nunca
-resolve "no código" durante a implementação. Isso aconteceu de fato durante
-o projeto: o protótipo aprovado consolidou as etapas de "Valor" e "Revisão"
-da spec original em uma única tela, e `plan.md`/`tasks.md` foram atualizados
-para refletir essa decisão antes de a implementação prosseguir, em vez de a
-divergência ser resolvida silenciosamente no código.
+The golden rule of the workflow: if an agent finds ambiguity at any stage, it
+goes back to the previous stage's artifact and clarifies it there — never
+resolving the ambiguity "in the code" during implementation. That actually
+happened during the project: the approved prototype consolidated the
+"Amount" and "Review" steps of the original spec into a single screen, and
+`plan.md`/`tasks.md` were updated to reflect that decision before
+implementation proceeded, instead of the divergence being resolved silently
+in the code.
 
-**Clean Architecture + MVVM-C.** O módulo `Pix` é dividido em três camadas —
-Domain (entidades e use cases, sem dependência de UIKit/SwiftUI/rede), Data
-(implementações de repositório sobre o networking do Core, mapeando erros de
-transporte para erros de domínio) e Presentation (SwiftUI + um único
-`PixViewModel` compartilhado pelas três telas do fluxo, evitando
-retransmissão manual de estado entre ViewModels). A navegação nunca é feita
-diretamente pela View: um `PixCoordinator` (UIKit, `UINavigationController`)
-recebe intenções via closures (`onRecipientSelected`, `onTransferConfirmed`,
-etc.) e decide para onde ir — regra reforçada tanto no `CLAUDE.md` quanto na
-checklist do subagent `ios-reviewer`.
+**Clean Architecture + MVVM-C.** The `Pix` module is split into three
+layers — Domain (entities and use cases, with no dependency on
+UIKit/SwiftUI/networking), Data (repository implementations on top of Core's
+networking, mapping transport errors to domain error types), and
+Presentation (SwiftUI + a single `PixViewModel` shared across the flow's
+three screens, avoiding manual state relaying between ViewModels).
+Navigation is never done directly by the View: a `PixCoordinator` (UIKit,
+`UINavigationController`) receives intents via closures
+(`onRecipientSelected`, `onTransferConfirmed`, etc.) and decides where to go
+— a rule enforced both in `CLAUDE.md` and in the `ios-reviewer` subagent's
+checklist.
 
-## O que foi construído
+## What was built
 
-- **UIKit + SwiftUI** — navegação via Coordinator pattern (UIKit) envolvendo
-  telas construídas em SwiftUI (`UIHostingController`)
-- **Multi-repo + SPM** — 4 repositórios (`superapp-agentic-workflow`,
-  `superapp-ios`, `superapp-design-system`, `superapp-api`), com o app iOS
-  organizado em pacotes Swift Package Manager (`App`, `Packages/Core`,
-  `Packages/Pix`) consumindo o pacote `SuperAppDesignSystem` como
-  dependência externa
-- **Design System próprio** — componentes de campo de texto, lista de
-  seleção, botões e banners reaproveitados do `superapp-design-system` em
-  vez de recriados localmente no módulo Pix
-- **Backend Java (Spring Boot)** — `superapp-api` expõe `PixController`,
-  `AccountController` e `ContactController`, com DTOs, serviços e exceções
-  de domínio (`InsufficientBalanceException`, `RecipientNotFoundException`)
-  sobre dados mockados
-- **Testes unitários** — cobertura do `PixViewModel` e das camadas de
-  Domain do módulo Pix, mais os testes existentes do módulo Core
-- **WCAG 2.1 AA** — VoiceOver, Dynamic Type, contraste e área de toque
-  mínima como critérios de aceite, não como item opcional de polimento
+- **UIKit + SwiftUI** — navigation via the Coordinator pattern (UIKit)
+  wrapping screens built in SwiftUI (`UIHostingController`)
+- **Multi-repo + SPM** — 4 repositories (`superapp-agentic-workflow`,
+  `superapp-ios`, `superapp-design-system`, `superapp-api`), with the iOS
+  app organized into Swift Package Manager packages (`App`,
+  `Packages/Core`, `Packages/Pix`) consuming the `SuperAppDesignSystem`
+  package as an external dependency
+- **A dedicated Design System** — text field, selection list, button, and
+  banner components reused from `superapp-design-system` instead of being
+  recreated locally in the Pix module
+- **Java backend (Spring Boot)** — `superapp-api` exposes `PixController`,
+  `AccountController`, and `ContactController`, with DTOs, services, and
+  domain exceptions (`InsufficientBalanceException`,
+  `RecipientNotFoundException`) over mocked data
+- **Unit tests** — coverage of `PixViewModel` and the Pix module's Domain
+  layers, plus the Core module's existing tests
+- **WCAG 2.1 AA** — VoiceOver, Dynamic Type, contrast, and minimum touch
+  area as acceptance criteria, not an optional polish item
 
-## Workflow agêntico
+## Agentic workflow
 
-**`CLAUDE.md` como contexto persistente.** Define a arquitetura do projeto,
-o fluxo SDD obrigatório (spec → plan → tasks → implement → test) e as regras
-que todo agente segue independente da task — nunca criar navegação fora do
-Coordinator, nunca duplicar componente do Design System, sempre exigir
-testes de ViewModel e acessibilidade em telas novas. É lido antes de
-qualquer implementação, não apenas consultado sob demanda.
+**`CLAUDE.md` as persistent context.** It defines the project's
+architecture, the mandatory SDD workflow (spec → plan → tasks → implement →
+test), and the rules every agent follows regardless of the task — never
+create navigation outside the Coordinator, never duplicate a Design System
+component, always require ViewModel tests and accessibility on new screens.
+It's read before any implementation, not just consulted on demand.
 
-**3 skills, cada uma com um papel específico:**
-- [`ios-feature`](skills/ios-feature/SKILL.md) — orquestra a sequência de
-  implementação de uma feature nova: ler a spec, checar o Design System
-  antes de criar componente, seguir Clean Architecture + MVVM-C, gerar
-  testes junto com a implementação e fechar com checagem de acessibilidade
-- [`test-generation`](skills/test-generation/SKILL.md) — padroniza os
-  testes de ViewModel (mock do repositório, caminho feliz + 2 cenários de
-  erro no mínimo, convenção de nome `test_<condição>_<resultadoEsperado>`)
-- [`accessibility-audit`](skills/accessibility-audit/SKILL.md) — checklist
-  de WCAG 2.1 AA (label acessível, Dynamic Type, contraste 4.5:1, área de
-  toque 44×44pt, ordem de leitura do VoiceOver) rodada antes de considerar
-  qualquer tela pronta
+**3 skills, each with a specific role:**
+- [`ios-feature`](skills/ios-feature/SKILL.md) — orchestrates the
+  implementation sequence for a new feature: read the spec, check the
+  Design System before creating a component, follow Clean Architecture +
+  MVVM-C, generate tests alongside the implementation, and close with an
+  accessibility check
+- [`test-generation`](skills/test-generation/SKILL.md) — standardizes
+  ViewModel tests (mock of the corresponding repository/service, happy path
+  + at least 2 error scenarios, `test_<condition>_<expectedResult>` naming
+  convention)
+- [`accessibility-audit`](skills/accessibility-audit/SKILL.md) — a WCAG
+  2.1 AA checklist (clear accessibility label, Dynamic Type, 4.5:1
+  contrast, 44×44pt touch area, VoiceOver reading order) run before
+  considering any screen done
 
-**2 subagents com escopo restrito, ambos somente leitura (exceto execução de
-testes):**
-- [`ios-reviewer`](.claude/agents/ios-reviewer.md) — revisa retain cycles,
-  violações de threading, violações de Clean Architecture e duplicação de
-  código no módulo Pix. Nunca edita arquivos nem sugere que outra ferramenta
-  o faça em seu lugar — apenas relata achados por severidade
-- [`qa-engineer`](.claude/agents/qa-engineer.md) — roda a suíte de testes
-  existente, analisa cobertura por leitura de código e aponta edge cases não
-  cobertos (valores negativos, chave Pix malformada, timeout de rede, saldo
-  exatamente igual ao valor transferido). Tem acesso a `Bash` só para
-  executar comandos de teste/inspeção, nunca para escrever arquivos de teste
-  ou alterar dependências
+**2 scoped subagents, both read-only (except for running tests):**
+- [`ios-reviewer`](.claude/agents/ios-reviewer.md) — reviews retain cycles,
+  threading violations, Clean Architecture violations, and code duplication
+  in the Pix module. Never edits files or suggests that another tool do so
+  in its place — it only reports findings by severity
+- [`qa-engineer`](.claude/agents/qa-engineer.md) — runs the existing test
+  suite, analyzes coverage by reading code, and flags untested edge cases
+  (negative amounts, malformed Pix keys, network timeouts, balance exactly
+  equal to the transfer amount). Has access to `Bash` only to run
+  test/inspection commands, never to write test files or change
+  dependencies
 
-**Integração com GitHub via MCP.** O fluxo gerou issues reais no repositório
-`superapp-ios`, não apenas tasks internas em markdown:
-- [Issue #1](https://github.com/DoniDevRs/superapp-ios/issues/1) — *"Levantamento
-  de componentes existentes no Design System"*, a task planejada da Fase 0
-  de `tasks.md`, aberta antes de qualquer código de Domain ser escrito, para
-  evitar duplicar componente visual
-- [Issue #2](https://github.com/DoniDevRs/superapp-ios/issues/2) — um bug
-  real encontrado durante o desenvolvimento: toque nos destinatários
-  recentes não navegava para `ReviewPaymentView`. A issue documenta a
-  investigação (wiring `Button` → `PixViewModel` → `PixCoordinator`
-  revisado e correto por leitura de código, um teste `XCUITest` que passa
-  mas não reproduz o problema com toque sintético) e levanta hipótese de
-  race condition entre o carregamento da lista e a instalação dos gesture
-  recognizers — o tipo de achado que só aparece testando o app de verdade,
-  não só lendo o código
+**GitHub integration via MCP.** The workflow generated real issues in the
+`superapp-ios` repository, not just internal markdown tasks:
+- [Issue #1](https://github.com/DoniDevRs/superapp-ios/issues/1) — *"Survey
+  of existing Design System components"*, the planned task from Phase 0 of
+  `tasks.md`, opened before any Domain code was written, to avoid
+  duplicating a visual component
+- [Issue #2](https://github.com/DoniDevRs/superapp-ios/issues/2) — a real
+  bug found during development: tapping recent recipients didn't navigate
+  to `ReviewPaymentView`. The issue documents the investigation (the
+  `Button` → `PixViewModel` → `PixCoordinator` wiring reviewed and found
+  correct by reading the code, an `XCUITest` that passes but doesn't
+  reproduce the problem with a synthetic tap) and raises the hypothesis of
+  a race condition between the list loading and the gesture recognizers
+  being installed — the kind of finding that only shows up when actually
+  testing the app, not just reading the code
 
-## Antes / Depois
+## Before / After
 
-| | Antes | Depois |
+| | Before | After |
 |---|---|---|
-| Telas | 6 | 3 |
-| Campos/entradas | 11 | 2 |
-| Alvo de toque | 26–30px | ≥48px |
-| Contraste (texto principal) | <3:1 | 12:1 |
-| Chave Pix | digitada duas vezes | inferida a partir de uma busca única |
-| Confirmação | senha na mesma tela densa da revisão | estado dedicado, sem senha misturada ao resumo |
+| Screens | 6 | 3 |
+| Fields/inputs | 11 | 2 |
+| Touch target | 26–30px | ≥48px |
+| Contrast (primary text) | <3:1 | 12:1 |
+| Pix key | typed twice | inferred from a single search |
+| Confirmation | password on the same dense review screen | dedicated state, no password mixed into the summary |
 
-![Fluxo antigo do Pix: 6 telas com 4 decisões redundantes](design/images/pix-antes.png)
+![Old Pix flow: 6 screens with 4 redundant decisions](design/images/pix-antes.png)
 
-![Fluxo redesenhado do Pix: 3 telas, estilo Sereno](design/images/pix-depois.png)
+![Redesigned Pix flow: 3 screens, "Sereno" style](design/images/pix-depois.png)
 
-Protótipo navegável em [`design/prototype/index.html`](design/prototype/index.html).
+Navigable prototype at [`design/prototype/index.html`](design/prototype/index.html).
 
-## Auditoria de Acessibilidade
+## Accessibility Audit
 
-Antes de fechar a feature, as 3 telas (`SelectRecipientView`,
-`ReviewPaymentView`, `ConfirmationView`) passaram por dois passes: a
-checklist estática da skill `accessibility-audit` e um teste de UI novo
-(`AccessibilityAuditUITests.swift`) que roda
-`XCUIApplication().performAccessibilityAudit()` navegando o fluxo completo
-Select → Review → Confirmation. Juntos, os dois passes encontraram e
-corrigiram:
+Before closing out the feature, the 3 screens (`SelectRecipientView`,
+`ReviewPaymentView`, `ConfirmationView`) went through two passes: the
+`accessibility-audit` skill's static checklist and a new UI test
+(`AccessibilityAuditUITests.swift`) that runs
+`XCUIApplication().performAccessibilityAudit()` while navigating the full
+Select → Review → Confirmation flow. Together, the two passes found and
+fixed:
 
-- **Hit area insuficiente** — os botões de texto "Trocar" e "Repetir para
-  {nome}" tinham `frame(minWidth:minHeight:)` mas nenhum `contentShape`, ou
-  seja, o frame maior não expandia a região realmente tocável. Confirmado
-  pelo próprio audit ("Hit area is too small").
-- **Elementos de acessibilidade não agrupados** — o resumo do destinatário
-  em `ReviewPaymentView` combinava um `Text` de iniciais do avatar
-  (`accessibilityHidden`) com o nome/banco visíveis sem agrupá-los, o que o
-  audit sinalizou como "potentially inaccessible text". Corrigido agrupando
-  em um único `accessibilityElement(children: .combine)`, mantendo o botão
-  "Trocar" como elemento separado e focável.
-- **Contraste insuficiente em modo escuro** — `PixTheme.error` era uma cor
-  fixa (~2.66:1 no modo escuro, abaixo dos 4.5:1 exigidos); tornada
-  adaptativa claro/escuro.
-- **Ícones decorativos sem `accessibilityHidden`** — busca, chevron e
-  triângulo de erro geravam paradas de VoiceOver sem label útil.
-- **Ordem de leitura do VoiceOver** — o banner de erro em
-  `SelectRecipientView` é um `.overlay` e por padrão é lido por último pelo
-  VoiceOver apesar de estar visualmente por cima; corrigido com
-  `accessibilitySortPriority`.
-- **Dynamic Type ignorado** — os ícones de status em `ConfirmationView`
-  usavam `.font(.system(size: 56))` fixo; substituído por `@ScaledMetric`.
+- **Insufficient hit area** — the "Change" and "Repeat for {name}" text
+  buttons had `frame(minWidth:minHeight:)` but no `contentShape`, meaning
+  the larger frame didn't expand the actually tappable region. Confirmed
+  by the audit itself ("Hit area is too small").
+- **Ungrouped accessibility elements** — the recipient summary in
+  `ReviewPaymentView` combined an avatar-initials `Text`
+  (`accessibilityHidden`) with the visible name/bank text without grouping
+  them, which the audit flagged as "potentially inaccessible text". Fixed
+  by grouping them into a single `accessibilityElement(children: .combine)`,
+  keeping the "Change" button as a separate, independently focusable
+  element.
+- **Insufficient contrast in dark mode** — `PixTheme.error` was a fixed
+  color (~2.66:1 in dark mode, below the required 4.5:1); made light/dark
+  adaptive.
+- **Decorative icons missing `accessibilityHidden`** — the search,
+  chevron, and error-triangle icons produced VoiceOver stops with no
+  useful label.
+- **VoiceOver reading order** — the error banner in `SelectRecipientView`
+  is an `.overlay` and by default is read last by VoiceOver despite being
+  visually on top; fixed with `accessibilitySortPriority`.
+- **Dynamic Type ignored** — the status icons in `ConfirmationView` used a
+  fixed `.font(.system(size: 56))`; replaced with `@ScaledMetric`.
 
-A causa raiz de um dos achados relacionados a Dynamic Type não estava no
-módulo Pix, mas no **Design System**: `DSFont` era construído via
-`UIFontMetrics.scaledFont(for:)` embrulhado em `Font(uiFont:)`, o que
-renderizava no tamanho correto mas não carregava os metadados de associação
-de text style que `performAccessibilityAudit()` inspeciona — resultado, todo
-`Text` usando `DSFont` era sinalizado com "Dynamic Type font sizes are
-unsupported". A correção exigiu um commit em `superapp-design-system`,
-reconstruindo `DSFont` sobre `@ScaledMetric` (API pública inalterada), e não
-apenas em `superapp-ios`.
+The root cause of one of the Dynamic Type-related findings wasn't in the
+Pix module, but in the **Design System**: `DSFont` was built via
+`UIFontMetrics.scaledFont(for:)` wrapped in `Font(uiFont:)`, which rendered
+at the correct size but didn't carry the text-style association metadata
+that `performAccessibilityAudit()` inspects — as a result, every `Text`
+using `DSFont` was flagged with "Dynamic Type font sizes are unsupported".
+The fix required a commit in `superapp-design-system`, rebuilding `DSFont`
+on `@ScaledMetric` (public API unchanged), not just in `superapp-ios`.
 
-**Resultado final:** reexecutando `performAccessibilityAudit()` nas 3 telas
-do fluxo após as correções — **0 achados**, contra falha em todo elemento de
-texto que usava `DSFont` antes do fix no Design System.
+**Final result:** rerunning `performAccessibilityAudit()` on the flow's 3
+screens after the fixes — **0 findings**, down from a failure on every text
+element using `DSFont` before the Design System fix.
 
-## Resultados
+## Results
 
-- **23 testes unitários** (21 no módulo Pix + 2 no módulo Core) + **3 testes
-  de UI** (2 testes de regressão existentes, relabelados após a mudança de
-  accessibilityLabel de "Trocar" para "Trocar destinatário", e o novo teste
-  de auditoria de acessibilidade) — todos passando.
-- O processo de ponta a ponta foi seguido sem pular etapa: spec → plan →
-  tasks → implementação em camadas (Domain → Data → Presentation →
-  Coordinator) → testes → auditoria de acessibilidade → correção → reteste
-  limpo. A única divergência encontrada no caminho (consolidação de duas
-  telas da spec original em uma só) foi resolvida atualizando `plan.md` e
-  `tasks.md` antes de prosseguir, e não silenciosamente no código —
-  exatamente o comportamento que a regra de ouro do SDD exige.
+- **23 unit tests** (21 in the Pix module + 2 in the Core module) + **3 UI
+  tests** (2 existing regression tests, relabeled after the
+  accessibilityLabel change from "Change" to "Change recipient", and the
+  new accessibility audit test) — all passing.
+- The end-to-end process was followed without skipping a stage: spec →
+  plan → tasks → layered implementation (Domain → Data → Presentation →
+  Coordinator) → tests → accessibility audit → fix → clean retest. The one
+  divergence found along the way (consolidating two screens from the
+  original spec into one) was resolved by updating `plan.md` and
+  `tasks.md` before proceeding, not silently in the code — exactly the
+  behavior the SDD golden rule requires.

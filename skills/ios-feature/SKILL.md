@@ -1,12 +1,12 @@
 ---
 name: ios-feature
-description: Use ao implementar uma nova feature iOS neste projeto
+description: Use when implementing a new iOS feature in this project
 ---
 
-Ao implementar uma nova feature:
-1. Leia a spec correspondente em specs/<feature>/spec.md
-2. Verifique se algum componente já existe no Design System antes de criar um novo
-3. Siga Clean Architecture + MVVM-C
-4. Toda navegação nova deve passar pelo Coordinator, nunca ser feita direto na View
-5. Gere testes unitários do ViewModel junto com a implementação
-6. Ao final, rode uma checagem de acessibilidade (ver skill accessibility-audit)
+When implementing a new feature:
+1. Read the corresponding spec at specs/<feature>/spec.md
+2. Check whether a component already exists in the Design System before creating a new one
+3. Follow Clean Architecture + MVVM-C
+4. All new navigation must go through the Coordinator, never done directly in the View
+5. Generate ViewModel unit tests alongside the implementation
+6. At the end, run an accessibility check (see the accessibility-audit skill)

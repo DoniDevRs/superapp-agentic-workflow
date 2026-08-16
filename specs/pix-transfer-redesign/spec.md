@@ -1,24 +1,24 @@
 # Feature: Pix Transfer Redesign
 
 ## Objective
-Redesenhar a jornada de transferência via Pix para reduzir o número de passos
-e melhorar clareza e acessibilidade.
+Redesign the Pix transfer journey to reduce the number of steps and improve
+clarity and accessibility.
 
 ## User stories
-- Como usuário, quero selecionar um destinatário salvo ou digitar uma chave Pix.
-- Como usuário, quero informar o valor e ver o saldo disponível.
-- Como usuário, quero revisar os dados antes de confirmar.
-- Como usuário, quero feedback claro de sucesso ou erro após a confirmação.
+- As a user, I want to select a saved recipient or type in a Pix key.
+- As a user, I want to enter the amount and see my available balance.
+- As a user, I want to review the details before confirming.
+- As a user, I want clear feedback of success or failure after confirming.
 
 ## Constraints
-- Navegação via UIKit + Coordinator
-- Telas construídas em SwiftUI
-- Arquitetura MVVM-C
+- Navigation via UIKit + Coordinator
+- Screens built in SwiftUI
+- MVVM-C architecture
 - WCAG 2.1 AA
-- Testes unitários obrigatórios no ViewModel
+- Unit tests required on the ViewModel
 
 ## Acceptance Criteria
-- Fluxo funciona 100% com VoiceOver
-- Suporta Dynamic Type
-- ViewModel coberto por testes unitários
-- Erros de rede/saldo tratados com mensagens claras
+- The flow works 100% with VoiceOver
+- Supports Dynamic Type
+- ViewModel covered by unit tests
+- Network/balance errors handled with clear messages
