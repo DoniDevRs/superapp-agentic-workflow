@@ -29,9 +29,10 @@ sobre cinza (contraste abaixo de 3:1, quando o WCAG 2.1 AA exige 4.5:1 para
 texto normal), e uma tela final que misturava a revisão dos dados com a
 digitação da senha.
 
-Esse cenário (documentado em [`design/images/pix-antes.png`](design/images/pix-antes.png))
-foi o ponto de partida para a spec em
+Esse cenário, documentado abaixo, foi o ponto de partida para a spec em
 [`specs/pix-transfer-redesign/spec.md`](specs/pix-transfer-redesign/spec.md).
+
+![Fluxo antigo do Pix: 6 telas com 4 decisões redundantes](design/images/pix-antes.png)
 
 ## Arquitetura
 
@@ -166,10 +167,11 @@ testes):**
 | Chave Pix | digitada duas vezes | inferida a partir de uma busca única |
 | Confirmação | senha na mesma tela densa da revisão | estado dedicado, sem senha misturada ao resumo |
 
-Ver [`design/images/pix-antes.png`](design/images/pix-antes.png) e
-[`design/images/pix-depois.png`](design/images/pix-depois.png) para o
-comparativo visual completo, e o protótipo navegável em
-[`design/prototype/index.html`](design/prototype/index.html).
+![Fluxo antigo do Pix: 6 telas com 4 decisões redundantes](design/images/pix-antes.png)
+
+![Fluxo redesenhado do Pix: 3 telas, estilo Sereno](design/images/pix-depois.png)
+
+Protótipo navegável em [`design/prototype/index.html`](design/prototype/index.html).
 
 ## Auditoria de Acessibilidade
 
